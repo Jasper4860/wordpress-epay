@@ -1,0 +1,4 @@
+GitHub MCP write permission verification.
+Repository: Jasper4860/wordpress-epay
+Date: 2026-10-30
+This temporary file will be removed after readback verification.
