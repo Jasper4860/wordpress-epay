@@ -1,6 +1,8 @@
 <?php
 /**
  * Cart and Checkout Blocks integration for EPay gateways.
+ *
+ * @package EPay
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -9,30 +11,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType;
 
+/** Exposes a configured EPay gateway to the Checkout Block. */
 final class EPAY_Blocks_Payment_Method extends AbstractPaymentMethodType {
 
-	/**
+	/** Create the block integration for one WooCommerce gateway.
+	 *
 	 * @param string $gateway_id WooCommerce payment gateway ID.
 	 */
 	public function __construct( $gateway_id ) {
 		$this->name = $gateway_id;
 	}
 
-	/**
+	/** Load the saved settings for this gateway.
+	 *
 	 * Load the settings saved by the matching WC_Payment_Gateway instance.
 	 */
 	public function initialize() {
 		$this->settings = get_option( 'woocommerce_' . $this->name . '_settings', array() );
 	}
 
-	/**
+	/** Return whether the matching gateway can accept checkout payments.
+	 *
 	 * @return bool
 	 */
 	public function is_active() {
-		return 'yes' === $this->get_setting( 'enabled', 'no' );
+		$gateway = $this->get_gateway();
+		return $gateway && $gateway->is_available();
 	}
 
-	/**
+	/** Return the frontend script handle for this payment method.
+	 *
 	 * @return array<int, string>
 	 */
 	public function get_payment_method_script_handles() {
@@ -58,12 +66,13 @@ final class EPAY_Blocks_Payment_Method extends AbstractPaymentMethodType {
 		return $this->get_payment_method_script_handles();
 	}
 
-	/**
+	/** Return the settings exposed to the Checkout Block.
+	 *
 	 * @return array<string, mixed>
 	 */
 	public function get_payment_method_data() {
-		$gateway = $this->get_gateway();
-		$title = $gateway ? $gateway->get_title() : $this->get_setting( 'title', $this->name );
+		$gateway     = $this->get_gateway();
+		$title       = $gateway ? $gateway->get_title() : $this->get_setting( 'title', $this->name );
 		$description = $gateway ? $gateway->get_description() : $this->get_setting( 'description', '' );
 
 		return array(
@@ -74,7 +83,8 @@ final class EPAY_Blocks_Payment_Method extends AbstractPaymentMethodType {
 		);
 	}
 
-	/**
+	/** Find the WooCommerce gateway instance for this method.
+	 *
 	 * @return WC_Payment_Gateway|null
 	 */
 	private function get_gateway() {

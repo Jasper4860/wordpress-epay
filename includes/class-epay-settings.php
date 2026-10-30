@@ -1,19 +1,27 @@
 <?php
 /**
  * EPay shared settings page.
+ *
+ * @package EPay
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/** Registers and validates the shared EPay configuration. */
 class EPAY_Settings {
 
 	const OPTION_NAME = 'epay_settings';
 
-	/** @var EPAY_Settings|null */
+	/**
+	 * Singleton instance.
+	 *
+	 * @var EPAY_Settings|null
+	 */
 	private static $instance = null;
 
+	/** Get the settings manager singleton. */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -21,17 +29,40 @@ class EPAY_Settings {
 		return self::$instance;
 	}
 
+	/** Register settings hooks. */
 	private function __construct() {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'admin_init', array( $this, 'settings_init' ) );
 	}
 
-	/** @return array<string, string> */
+	/** Get the saved shared settings.
+	 *
+	 * @return array<string, string> Saved settings.
+	 */
 	public static function get_options() {
 		$options = get_option( self::OPTION_NAME, array() );
-		return is_array( $options ) ? $options : array();
+		if ( ! is_array( $options ) ) {
+			return array();
+		}
+		return array_filter( $options, 'is_string' );
 	}
 
+	/**
+	 * Validate configuration before advertising a method at checkout.
+	 *
+	 * @return bool
+	 */
+	public static function is_configured() {
+		$options = self::get_options();
+		$url     = wp_parse_url( $options['api_url'] ?? '' );
+		return is_array( $url ) && ! empty( $url['host'] ) &&
+			in_array( $url['scheme'] ?? '', array( 'http', 'https' ), true ) &&
+			! isset( $url['query'] ) && ! isset( $url['fragment'] ) && ! isset( $url['user'] ) && ! isset( $url['pass'] ) &&
+			preg_match( '/^[1-9][0-9]*$/D', (string) ( $options['merchant_id'] ?? '' ) ) &&
+			! empty( $options['merchant_key'] );
+	}
+
+	/** Add the EPay settings page under WooCommerce. */
 	public function admin_menu() {
 		add_submenu_page(
 			'woocommerce',
@@ -43,6 +74,7 @@ class EPAY_Settings {
 		);
 	}
 
+	/** Register settings, sections, and fields. */
 	public function settings_init() {
 		register_setting(
 			'epay_settings_group',
@@ -67,6 +99,14 @@ class EPAY_Settings {
 		$this->add_field( 'return_url', __( '自定义支付后返回地址', 'epay' ), 'url', '', __( '可选；留空时返回 WooCommerce 订单完成页。', 'epay' ) );
 	}
 
+	/** Register a settings field.
+	 *
+	 * @param string $id Field ID.
+	 * @param string $title Field label.
+	 * @param string $type HTML input type.
+	 * @param string $placeholder Input placeholder.
+	 * @param string $description Field description.
+	 */
 	private function add_field( $id, $title, $type, $placeholder, $description ) {
 		add_settings_field(
 			$id,
@@ -83,6 +123,10 @@ class EPAY_Settings {
 		);
 	}
 
+	/** Render a settings field.
+	 *
+	 * @param array<string, string> $args Field rendering arguments.
+	 */
 	public function render_field( $args ) {
 		$options = self::get_options();
 		$value   = isset( $options[ $args['id'] ] ) ? $options[ $args['id'] ] : '';
@@ -104,12 +148,16 @@ class EPAY_Settings {
 		}
 	}
 
+	/** Render the API description and callback URL.
+	 */
 	public function section_description() {
 		echo '<p>' . esc_html__( '这些凭据供所有支付方式共用。请在 WooCommerce → 设置 → 付款中分别启用需要的通道。', 'epay' ) . '</p>';
+		echo '<p>' . esc_html__( 'V1 接口要求商店使用人民币（CNY）和两位小数；生产网关请使用平台单独提供的 HTTPS 地址。', 'epay' ) . '</p>';
 		echo '<p><strong>' . esc_html__( '异步通知地址：', 'epay' ) . '</strong> <code>' . esc_html( WC()->api_request_url( 'epay_notify' ) ) . '</code></p>';
 	}
 
-	/**
+	/** Sanitize settings form values.
+	 *
 	 * @param mixed $input Submitted settings.
 	 * @return array<string, string>
 	 */
@@ -118,9 +166,9 @@ class EPAY_Settings {
 		$input   = is_array( $input ) ? $input : array();
 		$output  = array();
 
-		$output['api_url'] = isset( $input['api_url'] ) ? untrailingslashit( esc_url_raw( trim( $input['api_url'] ), array( 'http', 'https' ) ) ) : '';
+		$output['api_url']     = isset( $input['api_url'] ) ? untrailingslashit( esc_url_raw( trim( $input['api_url'] ), array( 'http', 'https' ) ) ) : '';
 		$output['merchant_id'] = isset( $input['merchant_id'] ) ? sanitize_text_field( $input['merchant_id'] ) : '';
-		$output['return_url'] = isset( $input['return_url'] ) ? esc_url_raw( trim( $input['return_url'] ), array( 'http', 'https' ) ) : '';
+		$output['return_url']  = isset( $input['return_url'] ) ? esc_url_raw( trim( $input['return_url'] ), array( 'http', 'https' ) ) : '';
 
 		if ( ! empty( $input['merchant_key'] ) ) {
 			$output['merchant_key'] = sanitize_text_field( $input['merchant_key'] );
@@ -131,6 +179,7 @@ class EPAY_Settings {
 		return $output;
 	}
 
+	/** Render the settings page for authorized users. */
 	public function settings_page() {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			return;
