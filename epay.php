@@ -3,18 +3,23 @@
  * Plugin Name:       EPay for WooCommerce
  * Description:       WooCommerce 易支付网关，支持多种独立支付方式。
  * Author:            EPay Contributors
- * Version:           2.1.0
+ * Version:           2.1.1
  * Text Domain:       epay
  * Domain Path:       /languages
  * Requires PHP:      7.4
+ * Requires at least: 5.0
+ * License:           GPL-3.0
+ * License URI:       https://www.gnu.org/licenses/gpl-3.0.html
  * WC requires at least: 5.0
+ *
+ * @package EPay
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'EPAY_VERSION', '2.1.0' );
+define( 'EPAY_VERSION', '2.1.1' );
 define( 'EPAY_FILE', __FILE__ );
 define( 'EPAY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'EPAY_URL', plugin_dir_url( __FILE__ ) );
@@ -65,7 +70,10 @@ function epay_blocks_support() {
 add_action( 'woocommerce_blocks_loaded', 'epay_blocks_support' );
 
 /**
+ * Register EPay payment methods with the Checkout Blocks registry.
+ *
  * @param Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $payment_method_registry Payment method registry.
+ * @return void
  */
 function epay_register_blocks_payment_methods( $payment_method_registry ) {
 	$gateway_ids = array(
